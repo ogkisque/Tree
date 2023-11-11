@@ -21,6 +21,7 @@
 
 const char* NAME_DOT        = "pic.dot";
 const int   MAX_TEXT_SIZE   = 200;
+const int   MAX_SIZE        = 50;
 
 struct Node
 {
@@ -38,17 +39,17 @@ void    nodes_graph_dump    (Node* node, size_t counter);
 void    error_graph_dump    (Tree* tree, Error error);
 void    print_error         (Error error);
 
-Error new_node (Elemt value, Node** adress)
+Error new_node (Elemt value, Node** adres)
 {
-    if (!adress)
+    if (!adres)
         RETURN_ERROR(NULL_POINTER, "Null pointer of pointer of adress.");
 
-    *adress = (Node*) calloc (1, sizeof (Node));
+    *adres = (Node*) calloc (1, sizeof (Node));
 
-    if (!(*adress))
+    if (!(*adres))
         RETURN_ERROR(MEM_ALLOC, "Error of allocation memory of node.");
 
-    node_ctor (value, *adress);
+    node_ctor (value, *adres);
     RETURN_ERROR(CORRECT, "");
 }
 
@@ -85,8 +86,6 @@ Error tree_dtor (Tree* tree)
     nodes_dtor (tree->root);
     tree->size = 0;
     tree->root = NULL;
-    free (tree);
-    tree = NULL;
     RETURN_ERROR(CORRECT, "");
 }
 
@@ -106,11 +105,11 @@ Error insert_node (Tree* tree, Elemt value)
     }
 
     Node* current = tree->root;
-    Node* adress  = NULL;
+    Node* adres   = NULL;
     bool  left    = true;
     while (current)
     {
-        adress = current;
+        adres = current;
         left = (value <= current->value);
         if (value <= current->value)
             current = current->left;
@@ -119,9 +118,9 @@ Error insert_node (Tree* tree, Elemt value)
     }
 
     if (left)
-        error = new_node (value, &(adress->left));
+        error = new_node (value, &(adres->left));
     else
-        error = new_node (value, &(adress->right));
+        error = new_node (value, &(adres->right));
     PARSE_ERROR(tree, error);
     tree->size++;
     RETURN_ERROR(CORRECT, "");
@@ -197,25 +196,34 @@ Error nodes_print (Node* node, FILE* file, Formats format)
     RETURN_ERROR(CORRECT, "");
 }
 
-/*
-Error nodes_read (Node* node, FILE* file)
+Error nodes_read (Node** node, FILE* file, Formats format)
 {
     if (!file)
         RETURN_ERROR(NULL_POINTER, "Null pointer of file.");
 
-    if (!node)
-    {
-        fprintf (file, "nil ");
-        return;
-    }
+    char text[MAX_SIZE] = "";
+    fscanf (file, "%s ", text);
+    if (strcmp (text, "{") != 0)
+        RETURN_ERROR(CORRECT, "");
 
-    fscanf (file, "{ ");
-    fscanf (file, "%d ", node->value);
-    nodes_print (node->left, file);
-    nodes_print (node->right, file);
-    fscanf (file, "} ");
+    Error error = new_node (0, node);
+
+    if (format == PRE)
+        fscanf (file, "%d ", &((*node)->value));
+
+    nodes_read (&((*node)->left), file, format);
+
+    if (format == INF)
+        fscanf (file, "%d ", &((*node)->value));
+
+    nodes_read (&((*node)->right), file, format);
+
+    if (format == POST)
+        fscanf (file, "%d ", &((*node)->value));
+
+    fscanf (file, "%s ", text);
+    return error;
 }
-*/
 
 void print_error (Error error)
 {

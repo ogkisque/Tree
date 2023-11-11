@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 
 #include "colors.h"
 
@@ -54,5 +55,6 @@ Error   tree_ctor       (Tree* tree, const char* name, const char* file, const c
 Error   tree_dtor       (Tree* tree);
 Error   insert_node     (Tree* tree, Elemt value);
 Error   nodes_print     (Node* node, FILE* file, Formats format);
+Error   nodes_read      (Node** node, FILE* file, Formats format);
 void    tree_graph_dump (Tree* tree, Error error);
 #endif //TREE_HEADER
