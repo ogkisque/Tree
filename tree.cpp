@@ -1,45 +1,10 @@
 #include "tree.h"
-#include "Dotter.h"
-
-#define RETURN_ERROR(code, message) \
-        return Error {code, __LINE__, __FILE__, __func__, message}
-
-#define RETURN_ERROR_AND_DUMP(list, code, message)                                          \
-        {                                                                                   \
-            tree_dump (tree, Error {code, __LINE__, __FILE__, __func__, message});          \
-            tree_graph_dump (tree, Error {code, __LINE__, __FILE__, __func__, message});    \
-            return Error {code, __LINE__, __FILE__, __func__, message};                     \
-        }
-
-#define PARSE_ERROR(tree, error)            \
-        if (error.code != CORRECT)          \
-        {                                   \
-            tree_dump (tree, error);        \
-            tree_graph_dump (tree, error);  \
-            return error;                   \
-        }
 
 const char* NAME_DOT        = "pic.dot";
 const int   MAX_TEXT_SIZE   = 200;
-const int   MAX_SIZE        = 50;
+const int   MAX_SIZE        = 100;
 
-struct Node
-{
-    Elemt value;
-    Node* left;
-    Node* right;
-};
-
-Error   new_node            (Elemt value, Node** adress);
-void    node_ctor           (Elemt value, Node* node);
-void    nodes_dtor          (Node* node);
-Error   tree_verify         (Tree* tree);
-void    tree_dump           (Tree* tree, Error error);
-void    nodes_graph_dump    (Node* node, size_t counter);
-void    error_graph_dump    (Tree* tree, Error error);
-void    print_error         (Error error);
-
-Error new_node (Elemt value, Node** adres)
+Error new_node (char* value, Node** adres)
 {
     if (!adres)
         RETURN_ERROR(NULL_POINTER, "Null pointer of pointer of adress.");
@@ -49,15 +14,19 @@ Error new_node (Elemt value, Node** adres)
     if (!(*adres))
         RETURN_ERROR(MEM_ALLOC, "Error of allocation memory of node.");
 
-    node_ctor (value, *adres);
-    RETURN_ERROR(CORRECT, "");
+    Error error = node_ctor (value, *adres);
+    return error;
 }
 
-void node_ctor (Elemt value, Node* node)
+Error node_ctor (char* value, Node* node)
 {
-    node->value = value;
+    node->str = strdup (value);
+    if (!(node->str))
+        RETURN_ERROR(MEM_ALLOC, "Error in allocation memory for value in node.");
+
     node->left  = NULL;
     node->right = NULL;
+    RETURN_ERROR(CORRECT, "");
 }
 
 Error tree_ctor (Tree* tree, const char* name, const char* file, const char* func, int line)
@@ -89,49 +58,14 @@ Error tree_dtor (Tree* tree)
     RETURN_ERROR(CORRECT, "");
 }
 
-Error insert_node (Tree* tree, Elemt value)
-{
-    Error error = tree_verify (tree);
-    PARSE_ERROR(tree, error);
-
-    if (!tree->root)
-    {
-        Node* node = NULL;
-        error = new_node (value, &node);
-        PARSE_ERROR(tree, error);
-        tree->root = node;
-        tree->size = 1;
-        RETURN_ERROR(CORRECT, "");
-    }
-
-    Node* current = tree->root;
-    Node* adres   = NULL;
-    bool  left    = true;
-    while (current)
-    {
-        adres = current;
-        left = (value <= current->value);
-        if (value <= current->value)
-            current = current->left;
-        else
-            current = current->right;
-    }
-
-    if (left)
-        error = new_node (value, &(adres->left));
-    else
-        error = new_node (value, &(adres->right));
-    PARSE_ERROR(tree, error);
-    tree->size++;
-    RETURN_ERROR(CORRECT, "");
-}
-
 void nodes_dtor (Node* node)
 {
     if (node->left)
         nodes_dtor (node->left);
     if (node->right)
         nodes_dtor (node->right);
+    free (node->str);
+    node->str = NULL;
     free (node);
     node = NULL;
 }
@@ -182,15 +116,15 @@ Error nodes_print (Node* node, FILE* file, Formats format)
 
     fprintf (file, "{ ");
     if (format == PRE)
-        fprintf (file, "%d ", node->value);
+        fprintf (file, "<%s> ", node->str);
     nodes_print (node->left, file, format);
 
     if (format == INF)
-        fprintf (file, "%d ", node->value);
+        fprintf (file, "<%s> ", node->str);
     nodes_print (node->right, file, format);
 
     if (format == POST)
-        fprintf (file, "%d ", node->value);
+        fprintf (file, "<%s> ", node->str);
     fprintf (file, "} ");
 
     RETURN_ERROR(CORRECT, "");
@@ -209,20 +143,42 @@ Error nodes_read (Node** node, FILE* file, Formats format)
     Error error = new_node (0, node);
 
     if (format == PRE)
-        fscanf (file, "%d ", &((*node)->value));
+    {
+        error = read_value (file, node);
+        PARSE_ERROR_WITHOUT_TREE(error);
+    }
 
     nodes_read (&((*node)->left), file, format);
 
     if (format == INF)
-        fscanf (file, "%d ", &((*node)->value));
+    {
+        error = read_value (file, node);
+        PARSE_ERROR_WITHOUT_TREE(error);
+    }
 
     nodes_read (&((*node)->right), file, format);
 
     if (format == POST)
-        fscanf (file, "%d ", &((*node)->value));
+    {
+        error = read_value (file, node);
+        PARSE_ERROR_WITHOUT_TREE(error);
+    }
 
     fscanf (file, "%s ", text);
     return error;
+}
+
+Error read_value (FILE* file, Node** node)
+{
+    char value[MAX_SIZE] = "";
+    fscanf (file, "<%s> ", value);
+    value[strlen (value) - 1] = '\0';
+
+    (*node)->str = strdup (value);
+    if (!((*node)->str))
+        RETURN_ERROR(MEM_ALLOC, "Error in allocation memory for value in node.");
+
+    RETURN_ERROR(CORRECT, "");
 }
 
 void print_error (Error error)
@@ -255,17 +211,17 @@ void nodes_graph_dump (Node* node, size_t counter)
     dtLinkStyle ().style        ("bold")
                   .color        ("#4682B4");
 
-    sprintf (text, "%d", node->value);
+    sprintf (text, "%s", node->str);
     dtNode ((int) counter, text);
     if (node->left)
     {
         nodes_graph_dump (node->left, counter * 2 + 1);
-        dtLink ((int) counter, (int) counter * 2 + 1, "");
+        dtLink ((int) counter, (int) counter * 2 + 1, "yes");
     }
     if (node->right)
     {
         nodes_graph_dump (node->right, counter * 2 + 2);
-        dtLink ((int) counter, (int) counter * 2 + 2, "");
+        dtLink ((int) counter, (int) counter * 2 + 2, "no");
     }
 }
 

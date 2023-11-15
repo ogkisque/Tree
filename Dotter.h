@@ -484,7 +484,7 @@ void dtLink (const int FromNode, const int ToNode, const char Label [], const ne
 
 void dtRender (const char From [], const char To [], const char Type [], const bool Show)
 {
-    const int ComandSize = 100;
+    const int ComandSize = 200;
 
     char Comand [ComandSize] = "";
 
@@ -492,7 +492,7 @@ void dtRender (const char From [], const char To [], const char Type [], const b
 
     if (strlen (__DOT__) + strlen (From) + strlen (To) + strlen (Type) + OtherSymbols >= ComandSize) dtError ("Names too long!");
 
-    sprintf (Comand, "%s -T%s %s -o %s", __DOT__, Type, From, To);
+    sprintf (Comand, "%s -T %s %s -o %s", __DOT__, Type, From, To);
 
     system (Comand);
 

@@ -7,20 +7,32 @@
 #include <string.h>
 
 #include "colors.h"
+#include "error.h"
+#include "Dotter.h"
 
-typedef int Elemt;
+#define RETURN_ERROR_AND_DUMP(list, code, message)                                          \
+        {                                                                                   \
+            tree_dump (tree, Error {code, __LINE__, __FILE__, __func__, message});          \
+            tree_graph_dump (tree, Error {code, __LINE__, __FILE__, __func__, message});    \
+            return Error {code, __LINE__, __FILE__, __func__, message};                     \
+        }
+
+#define PARSE_ERROR(tree, error)            \
+        if (error.code != CORRECT)          \
+        {                                   \
+            tree_dump (tree, error);        \
+            tree_graph_dump (tree, error);  \
+            return error;                   \
+        }
+
+#define PARSE_ERROR_WITHOUT_TREE(error)     \
+        if (error.code != CORRECT)          \
+        {                                   \
+            return error;                   \
+        }
 
 #define TREE_CTOR(tree) \
         tree_ctor (tree, #tree, __FILE__, __func__, __LINE__)
-
-enum Error_codes
-{
-    CORRECT =           0,
-    NULL_POINTER =      1,
-    MEM_ALLOC =         2,
-    INCOR_PARAMS =      3,
-    NEGATIVE_SIZE =     4
-};
 
 enum Formats
 {
@@ -29,7 +41,12 @@ enum Formats
     INF =   2
 };
 
-struct Node;
+struct Node
+{
+    char*  str;
+    Node*  left;
+    Node*  right;
+};
 
 struct Tree
 {
@@ -42,19 +59,18 @@ struct Tree
     int         line;
 };
 
-struct Error
-{
-    Error_codes code;
-    int         line;
-    const char* file;
-    const char* func;
-    const char* message;
-};
-
-Error   tree_ctor       (Tree* tree, const char* name, const char* file, const char* func, int line);
-Error   tree_dtor       (Tree* tree);
-Error   insert_node     (Tree* tree, Elemt value);
-Error   nodes_print     (Node* node, FILE* file, Formats format);
-Error   nodes_read      (Node** node, FILE* file, Formats format);
-void    tree_graph_dump (Tree* tree, Error error);
+Error   tree_ctor           (Tree* tree, const char* name, const char* file, const char* func, int line);
+Error   tree_dtor           (Tree* tree);
+Error   nodes_print         (Node* node, FILE* file, Formats format);
+Error   nodes_read          (Node** node, FILE* file, Formats format);
+Error   read_value          (FILE* file, Node** node);
+void    tree_graph_dump     (Tree* tree, Error error);
+Error   new_node            (char* value, Node** adres);
+Error   node_ctor           (char* value, Node* node);
+void    nodes_dtor          (Node* node);
+Error   tree_verify         (Tree* tree);
+void    tree_dump           (Tree* tree, Error error);
+void    nodes_graph_dump    (Node* node, size_t counter);
+void    error_graph_dump    (Tree* tree, Error error);
+void    print_error         (Error error);
 #endif //TREE_HEADER
